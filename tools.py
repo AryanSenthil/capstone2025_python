@@ -27,6 +27,7 @@ block_interval = 7  # s
 padding_time = 1.56  # s
 
 
+
 def find_next_file_index(label, subdir):
     """Find the next available file index"""
     try:
@@ -474,3 +475,22 @@ def train_classification_model(data_paths, model_save_name, sampling_rate=16000,
         'train_spectrogram_ds': train_spectrogram_ds,
         'val_spectrogram_ds': val_spectrogram_ds
     }
+
+
+def write_csv_test(processed_df, test_directory):
+    current_time_str = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+
+    # Combine the label with the current time
+    subdir_label = f"test_{current_time_str}"
+
+    # Create the subdirectory path with the new label
+    subdir = os.path.join(test_directory, subdir_label)
+    os.makedirs(subdir, exist_ok=True)
+    filename = f"test_{current_time_str}"
+    file_path = os.path.join(subdir, filename)
+    
+    for i, df in enumerate(processed_df):
+        filename = f"test_{i}.csv"
+        file_path = os.path.join(subdir, filename)
+        df.to_csv(file_path, index=False)
+    return subdir 
