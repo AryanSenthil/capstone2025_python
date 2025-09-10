@@ -20,7 +20,7 @@ class CSVProcessorGUI:
     def __init__(self, root):
         self.root = root
         self.root.title("CSV Processor")
-        self.root.geometry("1200x800")
+        self.root.geometry("2000x1500")
         self.root.configure(bg='#f0f0f0')
         
         # Configure style

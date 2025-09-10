@@ -14,6 +14,10 @@ saved_models/*
 !saved_models/.gitkeep
 logs/*
 !logs/.gitkeep
+test/*
+!test/.gitkeep
+test_wav_files/*
+!test_wav_files/.gitkeep
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

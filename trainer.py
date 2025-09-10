@@ -539,7 +539,7 @@ class ModelTrainerGUI:
     def __init__(self, root):
         self.root = root
         self.root.title("Classification Model Trainer")
-        self.root.geometry("900x700")
+        self.root.geometry("2000x1500")
         self.root.minsize(800, 600)
         
         # Configure window styling

@@ -236,29 +236,6 @@ def wav_generator(data, sampling_rate):
     return wav_files
 
 
-
-
-def process_csv_file(file_path):
-    # Function to process a single csv file
-    df = pd.read_csv(file_path, header=None, encoding='utf-8')
-    
-    # Check if the dataframe has at least 2 rows (index 0 and 1)
-    if len(df) < 2:
-        raise ValueError(f"CSV file {file_path} must have at least 2 rows to contain type_of_damage at row 1")
-    
-    # Check if row 1 has at least 1 column (index 0)
-    if len(df.columns) < 1 or pd.isna(df.iloc[1, 0]):
-        raise ValueError(f"CSV file {file_path} is missing type_of_damage value at position [1,0]")
-    
-    type_of_damage = df.iloc[1, 0]
-    time_current_data = df.iloc[2:].astype(float).values
-    time_current_pairs = [tuple(row) for row in time_current_data]
-    return (time_current_pairs, type_of_damage)
-
-
-
-
-
 def read_csv_files(path, sampling_rate, period):
     data_for_model = []
     all_data = [] # ((time,current), type, deformation) for each file
@@ -295,7 +272,6 @@ def interpolate_data(data, interval, period):
         new_time_current = list(zip(new_time, new_current))
         interpolated_data.append((new_time_current, type_of_damage))
     return interpolated_data
-
 
 
 def train_classification_model(data_paths, model_save_name, sampling_rate=16000, time_period=10, epochs=10):
@@ -494,3 +470,96 @@ def write_csv_test(processed_df, test_directory):
         file_path = os.path.join(subdir, filename)
         df.to_csv(file_path, index=False)
     return subdir 
+
+
+def process_test(testfile, test_directory):
+    processed_df = process_csv_file(file_path=testfile)
+    test_subdirc = write_csv_test(processed_df = processed_df, test_directory=test_directory)
+    return test_subdirc
+
+
+def get_test_data(filepath):
+    df = pd.read_csv(filepath, header=None, encoding='utf-8')
+    time_current_data = df.iloc[1:].astype(float).values
+    time_current_pairs = [tuple(row) for row in time_current_data]
+    return (time_current_pairs)
+
+
+def interpolate_test_data(test_data, interval, period):
+    interpolated_test_data = []
+    
+    for time_current_pairs in test_data:
+        time, current = zip(*time_current_pairs)
+
+        interpolation_func = interp1d(time, current, kind='linear', fill_value='interpolate')
+        max_time = interval * (round(period/interval))
+        new_time = np.arange(0, max_time, interval)
+        new_time = np.arange(0, max_time, interval)
+        new_current = interpolation_func(new_time)
+        
+        new_time_current = list(zip(new_time, new_current))
+        interpolated_test_data.append(new_time_current)
+    return interpolated_test_data
+
+
+def read_test_csv_files(path, sampling_rate, period):
+    all_test_data = []
+    if os.path.isdir(path):
+        for filename in os.listdir(path):
+            if filename.endswith('.csv'):
+                filepath = os.path.join(path, filename)
+                all_test_data.append(get_test_data(filepath))
+    else:
+        raise ValueError(f"The path provided is neither a CSV file nor a directory: {path}")
+    interval = 1/sampling_rate
+    data_for_testing = interpolate_test_data(all_test_data, interval, period)
+    return data_for_testing
+
+
+def test_extract_data(data_list):
+    new_data = []
+    for time_current in data_list:
+        current_data = [current for _, current in time_current]
+        new_data.append(current_data)
+    return new_data
+
+def test_normalize_data(data):
+    max_val = np.max((np.abs(data)))
+    return data / max_val
+
+def test_convert_to_wave(normalized_data, time_interval):
+    sample_rate = tf.cast(int(1 / time_interval), tf.int32)
+
+    audio_tensor = tf.convert_to_tensor(normalized_data, dtype=tf.float32)
+    audio_tensor = tf.reshape(audio_tensor, (-1, 1))  # Ensure correct shape for audio encoding
+    return tf.audio.encode_wav(audio_tensor, sample_rate)
+
+def test_wav_generator(data, sampling_rate):
+    extracted_data = test_extract_data(data)
+    # Normalize the data
+    normalized_data = [test_normalize_data(current_sequence) for current_sequence in extracted_data]
+    # Generate WAV files
+    time_interval = 1 / sampling_rate
+    wav_files = [test_convert_to_wave(current_sequence, time_interval) for current_sequence in normalized_data]
+    return wav_files
+
+
+def save_test_wav_files(wav_file_list, base_folder_path):
+    # Ensure the base folder path is unique
+    version = 1
+    original_path = base_folder_path
+    while os.path.exists(base_folder_path):
+        base_folder_path = f"{original_path}_v{version}"
+        version += 1
+    
+    os.makedirs(base_folder_path, exist_ok=True)
+    
+    # Save each audio tensor to a file
+    for index, audio_tensor in enumerate(wav_file_list, start=1):
+        wav_filename = f"audio_{index}.wav"
+        wav_filepath = os.path.join(base_folder_path, wav_filename)
+        
+        # Fixed: audio_tensor is already the encoded WAV data, not a tuple
+        tf.io.write_file(wav_filepath, audio_tensor)
+    
+    return base_folder_path
